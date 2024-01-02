@@ -1,33 +1,38 @@
+volumes:
+  KAFKA_VOL: {}
 services:
-  shoppingcart_service:
-    container_name: shoppingcart_service
+# NOTE: will use kafka event stream as the source of truth
+  kafka0:
+    image: confluentinc/cp-kafka:latest
+    hostname: kafka0
+    container_name: kafka0
+    volumes:
+      - KAFKA_VOL:/var/lib/kafka/data
     networks:
       - cqrs-net
-    image: 'mongo:latest'
-    environment:
-      - 'MONGO_INITDB_DATABASE=shoppingcartdb'
-      - 'MONGO_INITDB_ROOT_PASSWORD=password'
-      - 'MONGO_INITDB_ROOT_USERNAME=admin'
     ports:
-      - '27017'
-  mongo_express:
-    depends_on:
-      - shoppingcart_service
-    image: 'mongo-express:latest'
-    container_name: mongo_express
-    networks:
-      - cqrs-net
+      - "9092:9092"
     environment:
-      - 'ME_CONFIG_BASICAUTH_USERNAME=admin'
-      - 'ME_CONFIG_BASICAUTH_PASSWORD=password'
-      - 'ME_CONFIG_MONGODB_PORT=27017'
-      - 'ME_CONFIG_MONGODB_ADMINUSERNAME=admin'
-      - 'ME_CONFIG_MONGODB_ADMINPASSWORD=password'
-      - 'ME_CONFIG_MONGODB_URL=mongodb://shoppingcart_service:27017'
-      - 'ME_CONFIG_MONGODB_ENABLE_ADMIN=true'
-      - 'ME_CONFIG_MONGODB_SERVER=shoppingcart_service'
-    ports:
-      - '8081:8081'
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,LISTENER_ONE:PLAINTEXT,LISTENER_TWO:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'LISTENER_ONE://kafka0:29092,LISTENER_TWO://192.168.0.160:9092'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka0:29093'
+      KAFKA_LISTENERS: 'CONTROLLER://kafka0:29093,LISTENER_ONE://kafka0:29092,LISTENER_TWO://localhost:9092'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'LISTENER_ONE'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # Replace CLUSTER_ID with a unique base64 UUID using "bin/kafka-storage.sh random-uuid"
+      # See https://docs.confluent.io/kafka/operations-tools/kafka-tools.html#kafka-storage-sh
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+      KAFKA_LOG4J_LOGGERS: 'kafka.controller=TRACE,kafka.request.logger=WARN'
+      KAFKA_TOOLS_LOG4J_LOGLEVEL: 'ERROR'
+
+# TODO: Need to setup
+# - confluentinc/cp-schema-registry
+# - cp-ksqldb-server
+# - cp-kafka-rest
+# - cp-control-center (extra learning when have time)
 
 networks:
   cqrs-net:
