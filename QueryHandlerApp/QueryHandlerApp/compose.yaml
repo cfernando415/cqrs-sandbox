@@ -2,43 +2,113 @@ volumes:
   KAFKA_VOL: {}
 services:
 # NOTE: will use kafka event stream as the source of truth
-  kafka0:
-    image: confluentinc/cp-kafka:latest
-    hostname: kafka0
-    container_name: kafka0
-    volumes:
-      - KAFKA_VOL:/var/lib/kafka/data
+  controller-1:
+    image: confluentinc/cp-server:latest
+    hostname: controller-1
+    container_name: controller-1
     networks:
       - cqrs-net
     ports:
-      - "9092:9092"
+      - '19092:9092'
+      - '19093:9093'
+      - '9012:9012'
     environment:
       KAFKA_NODE_ID: 1
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,LISTENER_ONE:PLAINTEXT,LISTENER_TWO:PLAINTEXT'
-      KAFKA_ADVERTISED_LISTENERS: 'LISTENER_ONE://kafka0:29092,LISTENER_TWO://kafka0:9092'
-      KAFKA_PROCESS_ROLES: 'broker,controller'
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka0:29093'
-      KAFKA_LISTENERS: 'CONTROLLER://kafka0:29093,LISTENER_ONE://kafka0:29092,LISTENER_TWO://kafka0:9092'
+      KAFKA_PROCESS_ROLES: 'controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@controller-1:9093'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
-      KAFKA_INTER_BROKER_LISTENER_NAME: 'LISTENER_ONE'
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      # Replace CLUSTER_ID with a unique base64 UUID using "bin/kafka-storage.sh random-uuid"
-      # See https://docs.confluent.io/kafka/operations-tools/kafka-tools.html#kafka-storage-sh
-      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
-      KAFKA_LOG4J_LOGGERS: 'kafka.controller=TRACE,kafka.request.logger=WARN'
-      KAFKA_TOOLS_LOG4J_LOGLEVEL: 'ERROR'
+      KAFKA_LISTENERS: 'CONTROLLER://controller-1:9093'
+      CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: 'localhost:19092'
+
+  kafka-1:
+    image: confluentinc/cp-server:latest
+    container_name: kafka-1
+    hostname: kafka-1
+    networks:
+      - cqrs-net
+    ports:
+      - '29092:9092'
+      - '29093:9093'
+      - '9013:9013'
+    environment:
+      KAFKA_NODE_ID: 2
+      KAFKA_PROCESS_ROLES: 'broker'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@controller-1:9093'
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka-1:9092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-1:9092'
+      KAFKA_METRIC_REPORTERS: 'io.confluent.metrics.reporter.ConfluentMetricsReporter'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: 'host.docker.internal:29092'
+    depends_on:
+      - controller-1
+
+  kafka-2:
+    image: confluentinc/cp-server:latest
+    container_name: kafka-2
+    hostname: kafka-2
+    networks:
+      - cqrs-net
+    ports:
+      - '39092:9092'
+      - '39093:9093'
+      - '9014:9014'
+    environment:
+      KAFKA_NODE_ID: 3
+      KAFKA_PROCESS_ROLES: 'broker'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@controller-1:9093'
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka-2:9092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-2:9092'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_METRIC_REPORTERS: 'io.confluent.metrics.reporter.ConfluentMetricsReporter'
+      CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: 'host.docker.internal:39092'
+    depends_on:
+      - controller-1
+
+  kafka-3:
+    image: confluentinc/cp-server:latest
+    hostname: kafka-3
+    container_name: kafka-3
+    networks:
+      - cqrs-net
+    ports:
+      - '49092:9092'
+      - '49093:9093'
+      - '9015:9015'
+    environment:
+      KAFKA_NODE_ID: 4
+      KAFKA_PROCESS_ROLES: 'broker'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@controller-1:9093'
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka-3:9092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-3:9092'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_METRIC_REPORTERS: 'io.confluent.metrics.reporter.ConfluentMetricsReporter'
+      CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: 'host.docker.internal:49092'
+    depends_on:
+      - controller-1
+
   schema-registry:
     depends_on:
-      - kafka0
+      - controller-1
+      - kafka-1
+      - kafka-2
+      - kafka-3
     image: confluentinc/cp-schema-registry:latest
     hostname: schema-registry
     container_name: schema-registry
     networks:
       - cqrs-net
     ports:
-      - "8081:8081"
+      - '8081:8081'
     environment:
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka0:9092'
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka-1:9092,kafka-2:9092,kafka-3:9092'
       SCHEMA_REGISTRY_HOST_NAME: 'schema-registry'
       SCHEMA_REGISTRY_LISTENERS: 'http://localhost:8081'
       SCHEMA_REGISTRY_DEBUG: 'true'
