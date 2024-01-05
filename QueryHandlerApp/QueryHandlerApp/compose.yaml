@@ -1,7 +1,7 @@
 volumes:
   KAFKA_VOL: {}
 services:
-# NOTE: will use kafka event stream as the source of truth
+  # NOTE: will use kafka event stream as the source of truth
   controller-1:
     image: confluentinc/cp-server:latest
     hostname: controller-1
@@ -20,7 +20,8 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_LISTENERS: 'CONTROLLER://controller-1:9093'
       CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
-      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: 'localhost:19092'
+      KAFKA_METRIC_REPORTERS: 'io.confluent.metrics.reporter.ConfluentMetricsReporter'
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: 'host.docker.internal:19092'
 
   kafka-1:
     image: confluentinc/cp-server:latest
