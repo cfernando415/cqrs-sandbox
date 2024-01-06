@@ -22,6 +22,8 @@ services:
       CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
       KAFKA_METRIC_REPORTERS: 'io.confluent.metrics.reporter.ConfluentMetricsReporter'
       CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: 'host.docker.internal:19092'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
   kafka-1:
     image: confluentinc/cp-server:latest
@@ -44,6 +46,8 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
       CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: 'host.docker.internal:29092'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     depends_on:
       - controller-1
 
@@ -68,6 +72,8 @@ services:
       KAFKA_METRIC_REPORTERS: 'io.confluent.metrics.reporter.ConfluentMetricsReporter'
       CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
       CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: 'host.docker.internal:39092'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     depends_on:
       - controller-1
 
@@ -92,6 +98,8 @@ services:
       KAFKA_METRIC_REPORTERS: 'io.confluent.metrics.reporter.ConfluentMetricsReporter'
       CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
       CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: 'host.docker.internal:49092'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     depends_on:
       - controller-1
 
@@ -109,14 +117,30 @@ services:
     ports:
       - '8081:8081'
     environment:
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka-1:9092,kafka-2:9092,kafka-3:9092'
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'PLAINTEXT://controller-1:9092,PLAINTEXT://kafka-1:9092,PLAINTEXT://kafka-2:9092,PLAINTEXT://kafka-3:9092'
       SCHEMA_REGISTRY_HOST_NAME: 'schema-registry'
       SCHEMA_REGISTRY_LISTENERS: 'http://localhost:8081'
       SCHEMA_REGISTRY_DEBUG: 'true'
 
+  rest-proxy:
+    image: confluentinc/cp-kafka-rest:latest
+    hostname: rest-proxy
+    container_name: rest-proxy
+    networks:
+      - cqrs-net
+    depends_on:
+      - controller-1
+      - kafka-1
+      - kafka-2
+      - kafka-3
+      - schema-registry
+    environment:
+      KAFKA_REST_HOST_NAME: rest-proxy
+      KAFKA_REST_BOOTSTRAP_SERVERS: controller-1:9092,kafka-1:9092,kafka-2:9092,kafka-3:9092
+      KAFKA_REST_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+
 # TODO: Need to setup
 # - cp-ksqldb-server
-# - cp-kafka-rest
 # - cp-control-center (extra learning when have time)
 
 networks:
